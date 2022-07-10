@@ -1,2 +1,2 @@
-# File-Transfer-System
-This repository contains the files for the project file transfer system
+# Components-of-Network-System
+This repository contains the files for the project components of network system
