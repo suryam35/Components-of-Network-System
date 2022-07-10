@@ -1,0 +1,178 @@
+How to run the code:
+	-> run make
+	-> now run the below two commands in seperate terminals
+	-> run ./user1
+	-> run ./user2
+
+
+The table with the results for varying p
+
+string for which values are taken: "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrst"
+
+╔═════════════════╤════════════════════╤═════════════════════════════╤═══════════════════════════════╗
+║Probability value│Number of Characters│Total Number of Transmissions│Average Number of Transmissions║
+╠═════════════════╪════════════════════╪═════════════════════════════╪═══════════════════════════════╣
+║0.05             │46                  │49                           │1.06                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.1              │46                  │50                           │1.09                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.15             │46                  │64                           │1.39                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.2              │46                  │70                           │1.52                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.25             │46                  │80                           │1.74                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.3              │46                  │93                           │2.02                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.35             │46                  │98                           │2.13                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.4              │46                  │117                          │2.54                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.45             │46                  │140                          │3.04                           ║
+╟─────────────────┼────────────────────┼─────────────────────────────┼───────────────────────────────╢
+║0.5              │46                  │161                          │3.50                           ║
+╚═════════════════╧════════════════════╧═════════════════════════════╧═══════════════════════════════╝
+
+
+List of Data Structures and Description of Functions.
+
+File name - roscket.h
+
+This is the header file containing all the definitions (functions and constants) required to build our socket library.
+
+The file contains definitions of the following functions:
+	1. r_socket - Function to create the socket.
+	2. r_bind - Function to bind the socket.
+	3. r_sendto - Function to send the data over the socket.
+	4. r_recvfrom - Function to recieve the data over the socket.
+	5. r_close - Function to close the socket.
+	6. *runnerR - Function for the operations to be carried out by our thread R.
+	7. *runnerS - Function for the operations to be carried out by our thread S.
+	8. dropMessage - Function to drop some messages depending on a probability value P.
+details of these functions are given under the description of rsocket.c file where these functions are implemented.
+
+This file also contains some constants:
+	1. SOCK_MRP - value of our own socket type.
+	2. T - contains the number of seconds used by sleep().
+	3. P - probability value used for dropping the messages.
+	4. MSG_SIZE - size of the messages transferred over the socket in 1 send or recieve.
+	5. TABLE_SIZE - maximum size of the unacknowledged_message_table and received_message_table.
+
+File name - rsocket.c
+
+The file contains following data structures:
+
+1. unack_table - This sturcture is used as an element in the unacknowledged_message_table.
+	It contains following items:
+		-> msg - The data message is stored in this.
+		-> msg_len - Length of the data message in the structure.
+		-> send_time - Latest time when the message was trasmitted.
+		-> destination_port - port number of the destination where the message is sent.
+		-> msg_id - unique id for messages is stored in this.
+		-> dest_addr - Points to a sockaddr structure containing the destination address for this message.
+		-> addrlen - Specifies the length of the sockaddr structure pointed to by the dest_addr argument.
+		-> flags - flags associated with the message are stored here.
+		-> actual_id - Represents the actual index of character in the string.
+
+2. recv_table - This sturcture is used as an element in the received_message_table.
+	It contains following items:
+		-> msg_id - unique id for messages is stored in this.
+		-> msg - The data message is stored in this.
+		-> src_addr - Points to a sockaddr structure containing the source address for this message.
+		-> addrlen - Specifies the length of the sockaddr structure pointed to by the src_addr argument.
+
+
+The file contains the following functions:
+
+1. r_socket - This is the function user calls to create the socket.
+	It takes the follwing parameters:
+		-> domain - The domain argument specifies a communication domain, this selects  the
+	       protocol  family  which will be used for communication.
+	    -> type - The type argument specifies the communication
+	       semantics. Inside the function we used SOCK_DGRAM for UDP.
+	    -> protocol - The  protocol  specifies  a  particular  protocol  to  be used with the
+	       socket.
+	The function does the following jobs:
+		-> Creates a UDP socket by passing the domain and protocol provided by the user.
+		-> returns immediately if socket creation is failed.
+		-> dynamically allocates memory for unacknowledged_message_table and received_message_table.
+		-> for all the entries in the table it puts -1 to the message ID which denotes these entries are empty.
+		-> Initializes mutex lock and attributes.
+		-> Creates thread R and S.
+		-> returns immediately if any of the thread creation is failed.
+		-> otherwise returns the file descriptor of the socket created.
+
+2. r_sendto - This is the function user calls to send some data over the socket.
+	It takes the follwing parameters:
+		-> sockfd - Specifies the socket file descriptor.
+	    -> buf - Points to a buffer containing the message to be sent.
+	    -> len - Specifies the size of the message in bytes.
+	    -> flags - Specifies the type of message transmission. 
+	    -> dest_addr - Points to a sockaddr structure containing the destination address.
+	    -> addrlen - Specifies the length of the sockaddr structure pointed to by the dest_addr argument.
+	The function does the following jobs:
+		-> Applies mutex lock and a empty place in the unacknowledged_message_table.
+		-> puts the details of the recived message in the unacknowledged_message_table at the found empty place
+		-> before putting the content of actual message in the table it adds a message sequence number to the message and for the time field of the table entry the function fills it with the current time. 
+		-> Applies mutex unlock after entering the data in the table and sends the message over the socket using sendto() call.
+		-> returns the number of bytes sent.
+
+
+3. r_recvfrom - This is the function user calls to recieve some data over the socket.
+	It takes the follwing parameters:
+		-> sockfd - Specifies the socket file descriptor.
+	    -> buf - Points to the buffer where the message should be stored.
+	    -> len - Specifies the length in bytes of the buffer pointed to by the buffer argument.
+	    -> flags - Specifies the type of message reception. 
+	    -> src_addr - A null pointer, or points to a sockaddr structure in which the sending address is to be stored.
+	    -> addrlen - Specifies the length of the sockaddr structure pointed to by the address argument.
+	The function does the following jobs:
+		-> Applies mutex lock and tries to find the first message present in the received_message_table.
+		-> If no message entry found the function will unlock the mutex and sleep() for 1 second and try to find the message again.
+		-> if some message entry is found in the received_message_table it copies the message into the buf provided by the user and also fills the other parameter passed to the function such as src_addr and addrlen.
+		-> Applies mutex unlock and returns the number of bytes of message copied to the buf.
+
+4. r_close - This is the function user calls to close the socket.
+	It takes the follwing parameters:
+		-> sockfd - Specifies the socket file descriptor.
+	The function does the following jobs:
+		-> kills thread R and thread S,
+		-> frees the memory allocated for both the tables unacknowledged_message_table and received_message_table.
+		-> closes the socket provided in the argument and returns it's success / error.
+
+5. r_bind - This is the function user calls to bind the socket.
+	It takes the follwing parameters:
+		-> sockfd - Specifies the socket file descriptor.
+	    -> addr - Points to a sockaddr structure containing the address.
+	    -> addrlen - Specifies the length of the sockaddr structure pointed to by the address argument.
+	The function does the following jobs:
+		-> binds the socket using bind() call with the provided arguments to the function.
+		
+
+6. runnerR - This is the function used by the thread R
+	The function does the following jobs:
+		-> Runs an infinite while loop in which creates a buffer array using this buffer calls recvfrom().
+		-> Applies mutex lock and extracts the message id from the message.
+		-> calls dropMessage functions if it returns 1 drops the message, unlocks the mutex and starts the while loop again.
+		-> extracts the message and checks if it is ACK or actual message.
+		-> if it is a ACK message then remove this message entry from unacknowledged_message_table (set the message id to -1).
+		-> if it is a actual message, find an empty place in the received_message_table then puts the message at that empty place, after that sends back an ACK message corresponding to the recieved message back to the sender.
+		-> Applies mutex unlock and starts the loop again.
+
+7. runnerS - This is the function used by the thread S
+	The function does the following jobs:
+		-> Runs an infinite while loop in which sleep() for a time T.
+		-> Applies mutex lock, iterates through the unacknowledged_message_table, finds the difference between the send time of that message and the current time.
+		-> if the difference between times is greater than equal to 2*T then retransmits the message and update the send_time to the current time then increase the number of total transmission.
+		-> Applies mutex unlock and starts the loop again.
+
+8. find_empty_place_unack_table - This function is used to find the first empty space in the unacknowledged_message_table.
+
+9. get_top_msg_recv_table - This function is used to get the first message present in the received_message_table
+
+10. get_empty_place_recv_table - This function is used to find the first empty space present in the received_message_table.
+
+11. get_msg_with_seq - This function takes two parameters, 1) buf that points to the character array. 2) A integer ID. the function prepends the id with the message and returns "ID {message}".
+
+12. dropMessage - This function takes a float and generates a random number between 0 to 1 then compares if the generated number is less than the number passed in argument it returns 1.
+
